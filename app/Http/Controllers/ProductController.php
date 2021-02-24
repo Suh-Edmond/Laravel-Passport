@@ -14,8 +14,8 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $product = Product::all();
-        return response()->json(['data' => $product, 'status' => 200]);
+        $product = Product::paginate(5);
+        return response()->json([$product, "status" => 206]);
     }
 
 
@@ -35,7 +35,7 @@ class ProductController extends Controller
     public function show($id)
     {
         $product = Product::findOrFail($id);
-        return response()->json($product);
+        return response()->json([$product, "status" => 200]);
     }
 
 
@@ -43,7 +43,7 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
         $product->update($request->all());
-        return response()->json(['msg' => 'Successfully updated', 'status' => 200]);
+        return response()->json(['data' => $product, 'msg' => 'Successfully updated', 'status' => 200]);
     }
 
     /**
@@ -55,6 +55,6 @@ class ProductController extends Controller
     public function destroy($id)
     {
         $deleted = Product::findOrFail($id)->delete();
-        return response()->json($deleted);
+        return response()->json(["data" => $deleted, "msg" => "Successfully deleted", "status" => 204]);
     }
 }

@@ -13,12 +13,25 @@ use Illuminate\Support\Facades\Route;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
-
-Route::middleware('auth:api')->get('/user', function (Request $request) {
-    return $request->user();
+//all protected resources
+Route::middleware('auth:api')->group(function () {
+    Route::get('/products', [App\Http\Controllers\ProductController::class, 'index']);
+    Route::get('/products/{id}', [App\Http\Controllers\ProductController::class, 'show']);
+    Route::put('/products/{id}', [App\Http\Controllers\ProductController::class, 'update']);
+    Route::post('/profile', [\App\Http\Controllers\Api\ApiController::class, 'UserDetails'])->name('details');
+    Route::post('logout', [\App\Http\Controllers\Api\ApiController::class, 'logout'])->name('logout');
+    Route::put('/profile/update/{id}', [\App\Http\Controllers\Api\ApiController::class, 'updateUser'])->name('update');
 });
-Route::get('/products', [App\Http\Controllers\ProductController::class, 'index']);
-Route::post('/products', [App\Http\Controllers\ProductController::class, 'store']);
-Route::get('/products/{id}', [App\Http\Controllers\ProductController::class, 'show']);
-Route::put('/products/{id}', [App\Http\Controllers\ProductController::class, 'update']);
-Route::delete('/products/{id}', [App\Http\Controllers\ProductController::class, 'destroy']);
+Route::middleware(['auth:api', 'scope:delete, add_product'])->group(function () {
+    Route::delete('/products/{id}', [App\Http\Controllers\ProductController::class, 'destroy']);
+    Route::post('/products', [App\Http\Controllers\ProductController::class, 'store']);
+});
+Route::group(['middleware' => 'cors'], function () {
+    Route::post('/register', [\App\Http\Controllers\Api\ApiController::class, 'register'])->name('register');
+    Route::post('/login', [\App\Http\Controllers\Api\ApiController::class, 'login'])->name('login');
+});
+Route::group(['namespace' => 'Api', 'middleware' => 'api', 'prefix' => 'password'], function () {
+    Route::post('create', [\App\Http\Controllers\Api\ResetPasswordController::class, 'create']);
+    Route::get('/find/{token}', [\App\Http\Controllers\Api\ResetPasswordController::class, 'find']);
+    Route::post('/reset', [\App\Http\Controllers\Api\ResetPasswordController::class, 'reset']);
+});
