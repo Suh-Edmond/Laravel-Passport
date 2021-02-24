@@ -11,21 +11,29 @@ use Illuminate\Support\Facades\Cookie;
 
 class ApiController extends Controller
 {
-    //register user function
+    //register a user to the system
     public function register(Request $request)
     {
-
         $validatedData = $request->validate([
             'name' => 'required|max:55',
             'email' => 'required|email|unique:users',
             'telephone' => 'required',
             'password' => 'required|string|min:8|confirmed',
-            'email_verified_at' => now()
+            'email_verified_at' => now(),
+            'rank' => 'integer'
         ]);
         //hashpassword
         $validatedData['password'] = Hash::make($validatedData['password']);
+
+        //create a new user
         $user = User::create($validatedData);
-        $accessToken = $user->createToken('authToken')->accessToken;
+        //create an access token for the user
+
+        if ($user->rank == 0) {
+            $accessToken = $user->createToken('authToken')->accessToken;
+        } else if ($user->rank == 1) {
+            $accessToken = $user->createToken('authToken', ['delete', 'add_product'])->accessToken;
+        }
         return response()->json(['user' => $user, 'access_token' => $accessToken, "status" => 201]);
     }
 
@@ -41,9 +49,12 @@ class ApiController extends Controller
             return response()->json(['userData' => $loginData, 'message' => "Invalid Credentials", "status" => "401"]);
         } else {
             $user = auth()->user();
-            $accessToken = $user->createToken('authToken')->accessToken;
+            if ($user->rank == 0) {
+                $accessToken = $user->createToken('authToken')->accessToken;
+            } else if ($user->rank == 1) {
+                $accessToken = $user->createToken('authToken', ['delete', 'add_product'])->accessToken;
+            }
             $cookie = $this->getCookieDetails($accessToken);
-
             return response()->json(["msg" => "Successfully Login",  "access_token" => $accessToken, "status" => 200, "data" => $user])
                 ->cookie(
                     $cookie['name'],
@@ -60,8 +71,12 @@ class ApiController extends Controller
     //get user details function
     public function UserDetails()
     {
-        $user = Auth::user();
-        return response()->json([$user], 200);
+        if (!Auth::user()) {
+            return response()->json("Not Authenticated");
+        } else {
+            $user = Auth::user();
+            return response()->json([$user], 200);
+        }
     }
     //logout user function
     public function logout(Request $request)
@@ -99,57 +114,5 @@ class ApiController extends Controller
             'httponly' => true,
             'samesite' => false,
         ];
-    }
-
-    //register admin users
-    public function adminRegisteration(Request $request)
-    {
-        $validatedData = $request->validate([
-            'name' => "required",
-            'email' => 'required|email',
-            'telephone' => 'required',
-            'password' => 'required|string|min:8|confirmed'
-        ]);
-        //has the password
-        $validatedData['password'] = Hash::make($validatedData['password']);
-        $newAdmin = User::create($validatedData);
-        $accessToken = $newAdmin->createToken('AdminToken', ['delete', 'add_product'])->accessToken;
-
-        return response()->json(['msg' => "Admin Successfully Created", "status" => 201, "token" => $accessToken]);
-    }
-
-    //login admin users
-    public function adminLogin(Request $request)
-    {
-        $loginData = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string|min:8'
-        ]);
-        if (!auth()->attempt($loginData)) {
-            return response()->json(["msg" => "Invalid Credential", "status" => 401, "data" => $loginData]);
-        } else {
-            $newAdmin = auth()->user();
-            $accessToken = $newAdmin->createToken("AdminToken", ['delete', 'add_product'])->accessToken;
-            $cookie = $this->getCookieDetails($accessToken);
-            return response()->json(["msg" => "Admin Successfully Login",  "access_token" => $accessToken, "status" => 200, "data" => $newAdmin])
-                ->cookie(
-                    $cookie['name'],
-                    $cookie['value'],
-                    $cookie['minutes'],
-                    $cookie['path'],
-                    $cookie['domain'],
-                    $cookie['secure'],
-                    $cookie['httponly'],
-                    $cookie['samesite']
-                );
-        }
-    }
-    //logout admin user
-    public function adminLogout(Request $request)
-    {
-        $request->user()->token()->revoke();
-        $cookie = Cookie::forget('_token');
-        return response()->json(["msg" => "Successfully Logout", "status" => "200"])
-            ->withCookie($cookie);
     }
 }
